@@ -123,3 +123,30 @@ what ships next) and the live-interview walkthrough.
   header and a highlighted GRAND TOTAL; cost columns use a `$#,##0.00` number
   format. Totals come from the same `resolvedCost()` as the screen. A bad photo
   blob is skipped rather than aborting the export.
+
+## Post-launch fixes (phone testing)
+
+- **Pricing model is fully live-resolved; no snapshots.** Confirmed
+  `resolvedCost(itemId, project) = project override → shared global override →
+  CSV default`, computed at calc/render time. Projects store ONLY sparse
+  per-item overrides; the global store (`STATE.global.overrides`) is shared by
+  all projects, so a global edit changes every non-overriding project — including
+  ones created *before* the edit. The earlier symptom (old projects not updating)
+  came from a previously-deployed build that snapshotted the full price table into
+  each project at creation. Added a `migrate()` step on load that: drops legacy
+  snapshot fields; strips any per-project override equal to the CSV default
+  (not a real override); and clears a project's overrides entirely if it still
+  holds a near-catalog-sized map (≥30 — a snapshot, not hand edits). Safe because
+  stripping default-equal entries doesn't change resolution; it just restores live
+  global tracking.
+- **Line-item row layout.** Name+unit live in a `min-w-0 flex-1` left column that
+  wraps within itself; qty / unit cost / line total / Remove sit in a fixed-width
+  `shrink-0` cluster, so columns stay aligned at ~360px and long names can never
+  slide under the quantity field.
+- **Text labels over icons** for room Edit/Remove and the per-line Remove control
+  (clearer tap affordance). Photo delete keeps its compact ✕.
+- **Added room rename** ("Edit") so instances can be named (e.g. "Master Bath").
+- **Background scroll lock** for all sheets (incl. Deal Analyzer) via
+  `position:fixed` on `body` + scroll restore — the iOS-Safari-proof technique,
+  since `body{overflow:hidden}` alone is ignored there.
+- **Slightly larger tap targets** on the primary header/footer action buttons.

@@ -47,10 +47,10 @@
       <div class="text-sm font-semibold">Repair Estimator</div>
     </div>
     <div class="ml-auto flex items-center gap-1.5">
-      <button id="btnProjects" class="no-tap px-3 h-9 rounded-lg bg-slate-700 active:bg-slate-600 text-sm font-medium max-w-[44vw] truncate">
+      <button id="btnProjects" class="no-tap px-3.5 h-10 rounded-lg bg-slate-700 active:bg-slate-600 text-sm font-medium max-w-[44vw] truncate">
         Project ▾
       </button>
-      <button id="btnMenu" class="no-tap w-9 h-9 rounded-lg bg-slate-700 active:bg-slate-600 text-lg" aria-label="Menu">⋯</button>
+      <button id="btnMenu" class="no-tap w-10 h-10 rounded-lg bg-slate-700 active:bg-slate-600 text-lg" aria-label="Menu">⋯</button>
     </div>
   </div>
   <!-- progress bar -->
@@ -76,8 +76,8 @@
       <div id="grandTotal" class="text-2xl font-bold text-slate-900">$0.00</div>
     </div>
     <div class="ml-auto flex gap-2">
-      <button id="btnDeal" class="no-tap px-3 h-11 rounded-xl bg-emerald-600 active:bg-emerald-700 text-white text-sm font-semibold">Deal</button>
-      <button id="btnExport" class="no-tap px-4 h-11 rounded-xl bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold">Export ZIP</button>
+      <button id="btnDeal" class="no-tap px-4 h-12 rounded-xl bg-emerald-600 active:bg-emerald-700 text-white text-sm font-semibold">Deal</button>
+      <button id="btnExport" class="no-tap px-5 h-12 rounded-xl bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold">Export ZIP</button>
     </div>
   </div>
 </div>
@@ -567,11 +567,13 @@ function roomHTML(room, p) {
   return `
   <section class="mb-3 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
     <div class="flex items-center gap-2 px-3 py-3 cursor-pointer no-tap" data-act="toggleRoom" data-i="${room.instanceId}">
-      <span class="caret ${open ? "open" : ""} text-slate-400">▶</span>
-      <span class="text-xl">${rt.icon}</span>
-      <span class="font-semibold text-slate-800">${esc(room.label)}</span>
-      <span id="rs_${room.instanceId}" class="ml-auto text-sm font-semibold text-slate-500">$0.00</span>
-      ${rt.singleton ? "" : `<button data-act="removeRoom" data-i="${room.instanceId}" class="no-tap ml-1 w-8 h-8 rounded-lg text-rose-500 active:bg-rose-50 text-lg" aria-label="Remove room">🗑</button>`}
+      <span class="caret ${open ? "open" : ""} text-slate-400 shrink-0">▶</span>
+      <span class="text-xl shrink-0">${rt.icon}</span>
+      <span class="font-semibold text-slate-800 min-w-0 flex-1 truncate">${esc(room.label)}</span>
+      <span id="rs_${room.instanceId}" class="shrink-0 text-sm font-semibold text-slate-500">$0.00</span>
+      ${rt.singleton ? "" : `
+      <button data-act="renameRoom" data-i="${room.instanceId}" class="no-tap shrink-0 px-3 h-9 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 active:bg-slate-200" aria-label="Edit room name">Edit</button>
+      <button data-act="removeRoom" data-i="${room.instanceId}" class="no-tap shrink-0 px-3 h-9 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 active:bg-rose-100" aria-label="Remove room">Remove</button>`}
     </div>
     <div id="rbody_${room.instanceId}" class="px-3 pb-3 space-y-2" ${open ? "" : "hidden"}>
       ${groups}
@@ -618,21 +620,27 @@ function lineHTML(room, gid, itemId, p, gs) {
   const cost = resolvedCost(itemId, p);
   const k = room.instanceId + "|" + gid + "|" + itemId;
   const over = isOverridden(itemId, p);
+  // Row layout: the name+unit take the flexible left column (min-w-0 so they
+  // wrap WITHIN their column and never slide under the controls); qty / cost /
+  // line total / Remove sit in a fixed-width, shrink-0 cluster so they stay
+  // aligned in their columns across every row, even at ~360px width.
   return `
-  <div class="flex items-center gap-2 px-3 py-2 border-t border-slate-100">
+  <div class="flex items-start gap-2 px-3 py-2 border-t border-slate-100">
     <input type="checkbox" data-act="check" data-i="${room.instanceId}" data-g="${gid}" data-it="${itemId}"
-      id="ck_${k}" ${ls.checked ? "checked" : ""} class="w-5 h-5 rounded accent-amber-500 shrink-0" />
+      id="ck_${k}" ${ls.checked ? "checked" : ""} class="w-5 h-5 mt-1 rounded accent-amber-500 shrink-0" />
     <div class="min-w-0 flex-1">
-      <div class="text-sm text-slate-800 leading-tight">${esc(m.name)}</div>
+      <div class="text-sm text-slate-800 leading-snug break-words">${esc(m.name)}</div>
       <div class="text-[11px] text-slate-400">per ${esc(m.unit || "ea.")}</div>
     </div>
-    <input type="number" inputmode="decimal" min="0" step="any" data-act="qty" data-i="${room.instanceId}" data-g="${gid}" data-it="${itemId}"
-      value="${ls.qty}" class="w-16 text-center rounded-lg border border-slate-300 py-1.5" aria-label="Quantity" />
-    <button data-act="cost" data-it="${itemId}" class="no-tap w-20 text-right text-sm ${over ? "text-amber-600 font-semibold" : "text-slate-500"}" aria-label="Edit unit cost">
-      ${money(cost)}${over ? " *" : ""}
-    </button>
-    <span id="lt_${k}" class="w-20 text-right text-sm font-semibold text-slate-800">$0.00</span>
-    <button data-act="removeItem" data-it="${itemId}" class="no-tap w-7 h-7 text-slate-300 active:text-rose-500 shrink-0" aria-label="Remove item">✕</button>
+    <div class="shrink-0 flex items-center gap-1.5">
+      <input type="number" inputmode="decimal" min="0" step="any" data-act="qty" data-i="${room.instanceId}" data-g="${gid}" data-it="${itemId}"
+        value="${ls.qty}" class="w-12 text-center rounded-lg border border-slate-300 py-1.5" aria-label="Quantity" />
+      <button data-act="cost" data-it="${itemId}" class="no-tap w-14 text-right text-xs ${over ? "text-amber-600 font-semibold" : "text-slate-500"}" aria-label="Edit unit cost">
+        ${money(cost)}${over ? " *" : ""}
+      </button>
+      <span id="lt_${k}" class="w-16 text-right text-xs font-semibold text-slate-800">$0.00</span>
+      <button data-act="removeItem" data-it="${itemId}" class="no-tap px-2 h-8 rounded-lg text-xs font-semibold text-rose-600 active:bg-rose-50" aria-label="Remove item">Remove</button>
+    </div>
   </div>`;
 }
 
@@ -713,6 +721,8 @@ main.addEventListener("click", e => {
     const room = makeRoom(type, ""); room.label = instanceLabel(p, type);
     p.rooms.push(room); ui.openRooms.add(room.instanceId); render(); save();
     document.getElementById("rbody_" + room.instanceId)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  } else if (act === "renameRoom") {
+    renameRoom(btn.dataset.i);
   } else if (act === "removeRoom") {
     const id = btn.dataset.i, p = activeProject(), room = getRoom(id);
     confirmModal(`Remove ${room.label}? Its selections will be deleted.`, () => {
@@ -740,8 +750,27 @@ function saveDebounced() { clearTimeout(_saveT); _saveT = setTimeout(save, 400);
    ============================================================ */
 
 const sheetRoot = document.getElementById("sheetRoot");
-function closeSheet() { sheetRoot.innerHTML = ""; }
+
+// Background-scroll lock for open sheets. iOS Safari ignores body{overflow:hidden},
+// so we pin the body with position:fixed and restore the scroll position on close.
+let _locked = false, _scrollY = 0;
+function lockScroll() {
+  if (_locked) return;
+  _scrollY = window.scrollY || window.pageYOffset || 0;
+  const b = document.body.style;
+  b.position = "fixed"; b.top = `-${_scrollY}px`; b.left = "0"; b.right = "0"; b.width = "100%"; b.overflow = "hidden";
+  _locked = true;
+}
+function unlockScroll() {
+  if (!_locked) return;
+  const b = document.body.style;
+  b.position = ""; b.top = ""; b.left = ""; b.right = ""; b.width = ""; b.overflow = "";
+  _locked = false;
+  window.scrollTo(0, _scrollY);
+}
+function closeSheet() { sheetRoot.innerHTML = ""; unlockScroll(); }
 function overlay(inner, opts = {}) {
+  lockScroll();
   sheetRoot.innerHTML = `
     <div class="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center justify-center" data-ov>
       <div class="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl max-h-[88vh] overflow-y-auto safe-bottom" data-card>
@@ -813,6 +842,14 @@ function renameProject(id) {
     <input id="rnName" value="${esc(p.name)}" class="w-full h-12 rounded-xl border border-slate-300 px-3 mb-3" />
     <button id="rnSave" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">Save</button></div>`);
   $("#rnSave").addEventListener("click", () => { p.name = $("#rnName").value.trim() || p.name; save(); openProjects(); syncProjectBtn(); });
+}
+function renameRoom(instanceId) {
+  const room = getRoom(instanceId); if (!room) return;
+  overlay(sheetHeader("Rename Room") + `<div class="p-4">
+    <input id="rrName" value="${esc(room.label)}" class="w-full h-12 rounded-xl border border-slate-300 px-3 mb-3" />
+    <button id="rrSave" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">Save</button></div>`);
+  setTimeout(() => $("#rrName").focus(), 50);
+  $("#rrSave").addEventListener("click", () => { const v = $("#rrName").value.trim(); if (v) room.label = v; save(); closeSheet(); render(); });
 }
 function deleteProject(id) {
   if (STATE.order.length <= 1) { toast("Keep at least one project."); return; }
@@ -1162,14 +1199,51 @@ document.getElementById("main").addEventListener("click", e => {
   if (e.target.closest("#btnAddPhoto")) photoInput.click();
 });
 
+/* Normalize loaded state to the live-resolved pricing model and fill any
+   missing fields. Prices are NEVER snapshotted into a project: a project keeps
+   only sparse per-item overrides; the global store is shared; resolvedCost reads
+   both live. A previously-deployed build snapshotted the whole price table into
+   each project's priceOverrides at creation, which froze older projects against
+   later global edits — this migration undoes that. */
+function migrate(state) {
+  if (!state || typeof state !== "object") return state;
+  if (!state.global || typeof state.global !== "object") state.global = { overrides: {} };
+  if (!state.global.overrides || typeof state.global.overrides !== "object") state.global.overrides = {};
+  if (!state.settings) state.settings = { maoRulePct: 70 };
+  const projects = state.projects || {};
+  for (const id in projects) {
+    const p = projects[id];
+    if (!p.priceOverrides || typeof p.priceOverrides !== "object") p.priceOverrides = {};
+    if (!p.customItems || typeof p.customItems !== "object") p.customItems = {};
+    if (!Array.isArray(p.removed)) p.removed = [];
+    if (!Array.isArray(p.photos)) p.photos = [];
+    if (!Array.isArray(p.rooms)) p.rooms = [];
+    if (typeof p.notes !== "string") p.notes = "";
+    if (!p.deal || typeof p.deal !== "object") p.deal = { arv: "", rulePct: state.settings.maoRulePct, purchase: "" };
+    // Drop any legacy full price-table snapshot fields.
+    delete p.prices; delete p.priceTable; delete p.priceSnapshot;
+    // De-snapshot priceOverrides: an entry equal to the CSV default isn't a real
+    // override (drop it), and a near-catalog-sized map is a snapshot (clear it).
+    // Both restore live resolution against the current global price.
+    for (const itemId of Object.keys(p.priceOverrides)) {
+      const def = CATALOG[itemId] ? CATALOG[itemId].cost : (p.customItems[itemId] ? p.customItems[itemId].cost : null);
+      if (def != null && p.priceOverrides[itemId] === def) delete p.priceOverrides[itemId];
+    }
+    if (Object.keys(p.priceOverrides).length >= 30) p.priceOverrides = {};
+  }
+  return state;
+}
+
 function boot() {
-  STATE = Store.load();
-  if (!STATE || !STATE.projects || !Object.keys(STATE.projects).length) {
+  const loaded = migrate(Store.load());
+  if (!loaded || !loaded.projects || !Object.keys(loaded.projects).length) {
     STATE = defaultState();
     const p = newProject("My First Property");
     STATE.projects[p.id] = p; STATE.order.push(p.id); STATE.activeId = p.id;
-    save();
+  } else {
+    STATE = loaded;
   }
+  save();
   if (!STATE.activeId || !STATE.projects[STATE.activeId]) STATE.activeId = STATE.order[0];
   // open the first room by default so the app doesn't look empty
   const ap = activeProject(); if (ap && ap.rooms[0]) ui.openRooms.add(ap.rooms[0].instanceId);

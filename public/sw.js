@@ -7,7 +7,7 @@
      back to the cached index.html when offline.
    Bump CACHE to invalidate old assets on deploy. */
 
-const CACHE = "spark-est-v3";
+const CACHE = "spark-est-v4";
 
 const SHELL = [
   "./",
