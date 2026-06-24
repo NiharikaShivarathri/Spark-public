@@ -150,3 +150,34 @@ what ships next) and the live-interview walkthrough.
   `position:fixed` on `body` + scroll restore — the iOS-Safari-proof technique,
   since `body{overflow:hidden}` alone is ignored there.
 - **Slightly larger tap targets** on the primary header/footer action buttons.
+
+## Branding & second round of phone fixes
+
+- **White header + orange accent.** Replaced the dark slate header with a clean
+  white bar (subtle bottom border + shadow) so the logo reads clearly. Introduced
+  a Tailwind `brand` color sampled from the logo mark — **#D45101** (with `dark`
+  #A83F01 and `light` #FDEDE3) — and swapped all amber/slate-blue primary accents
+  (buttons, progress bar, active rows, checkboxes, overrides) to it. Updated the
+  `theme-color` meta and manifest `theme_color`/`background_color` to `#ffffff`
+  and set the iOS status-bar style to `default` so status-bar icons stay dark/
+  legible on the white chrome. The Deal panel keeps its amber-300 accent (it sits
+  on a dark card — warm, not blue). The source logo PNG was not modified.
+- **Maskable app icons.** Old icons rendered the wordmark invisibly. Regenerated
+  `icon-192.png`/`icon-512.png` from just the logo's icon mark (bbox auto-detected
+  from the orange pixels), centered on a solid white square at ~60% size (≈20%
+  safe-zone padding) so the rounded-corner mask never clips it. `purpose: "any
+  maskable"`, both sizes referenced. Generated with a self-contained Node PNG
+  decoder (Adam7 de-interlace) + encoder — no external image tooling.
+- **Reset Property** button on the main page: confirm dialog, then clears the
+  current project's selections/quantities/notes/overrides/custom items/photos
+  (photo blobs deleted from IndexedDB too). Keeps the project + its rooms; never
+  touches other projects.
+- **Text labels** for the Projects panel Edit/Remove controls (was ✏️/🗑), for
+  consistency with room/group buttons.
+- **Group count confirmed = 20:** the 19 brief groups (Interior: Flooring, Paint
+  & Wall Repair, Doors, Pest Control · Kitchen: Cabinets, Countertops & Tile,
+  Appliances · Bathrooms: Vanity & Countertop, Tub & Shower, Tile · Systems: HVAC,
+  Electrical, Structural, Insulation & Drywall · Exterior: Fence, Siding, Windows,
+  Garage, Trees & Grounds) **+ General & Labor (Whole-House)**. No group duplicated
+  or split (verified: no two groups share an item set). Lighting & Closet remain
+  separate per-room (Living/Bedroom) templates, not part of the 20.

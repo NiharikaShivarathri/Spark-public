@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
-<meta name="theme-color" content="#0f172a" />
+<meta name="theme-color" content="#ffffff" />
 <title>Spark Homes — Repair Estimator</title>
 
 <!-- PWA -->
@@ -11,7 +11,7 @@
 <link rel="apple-touch-icon" href="./icon-192.png" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Spark Estimator" />
 
 <!-- CDN libs (cached by the service worker for offline use). Tailwind for styling,
@@ -19,6 +19,8 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
+<!-- Brand palette: warm orange sampled from the Spark logo mark (#D45101). -->
+<script>tailwind.config={theme:{extend:{colors:{brand:{DEFAULT:'#D45101',dark:'#A83F01',light:'#FDEDE3'}}}}};</script>
 
 <!-- Shell styling that applies before Tailwind's runtime CSS lands (avoids a flash). -->
 <style>
@@ -39,28 +41,28 @@
 <body class="text-slate-800">
 
 <!-- ============================ APP HEADER ============================ -->
-<header class="safe-top sticky top-0 z-30 bg-slate-900 text-white shadow-md">
+<header class="safe-top sticky top-0 z-30 bg-white text-slate-800 border-b border-slate-200 shadow-sm">
   <div class="flex items-center gap-2 px-3 h-14">
-    <img src="./Spark%20Group%20-%20Logo.png" alt="Spark Homes" class="h-7 w-auto"
+    <img src="./Spark%20Group%20-%20Logo.png" alt="Spark Homes" class="h-8 w-auto"
          onerror="this.style.display='none'"/>
     <div class="leading-tight">
-      <div class="text-sm font-semibold">Repair Estimator</div>
+      <div class="text-sm font-semibold text-slate-800">Repair Estimator</div>
     </div>
     <div class="ml-auto flex items-center gap-1.5">
-      <button id="btnProjects" class="no-tap px-3.5 h-10 rounded-lg bg-slate-700 active:bg-slate-600 text-sm font-medium max-w-[44vw] truncate">
+      <button id="btnProjects" class="no-tap px-3.5 h-10 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-700 text-sm font-medium max-w-[44vw] truncate">
         Project ▾
       </button>
-      <button id="btnMenu" class="no-tap w-10 h-10 rounded-lg bg-slate-700 active:bg-slate-600 text-lg" aria-label="Menu">⋯</button>
+      <button id="btnMenu" class="no-tap w-10 h-10 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-700 text-lg" aria-label="Menu">⋯</button>
     </div>
   </div>
   <!-- progress bar -->
   <div class="px-3 pb-2">
-    <div class="flex items-center justify-between text-[11px] text-slate-300 mb-1">
+    <div class="flex items-center justify-between text-[11px] text-slate-500 mb-1">
       <span id="progText">0 / 0 groups reviewed</span>
       <span id="progPct">0%</span>
     </div>
-    <div class="h-2 rounded-full bg-slate-700 overflow-hidden">
-      <div id="progBar" class="h-full bg-amber-400 transition-all duration-200" style="width:0%"></div>
+    <div class="h-2 rounded-full bg-slate-200 overflow-hidden">
+      <div id="progBar" class="h-full bg-brand transition-all duration-200" style="width:0%"></div>
     </div>
   </div>
 </header>
@@ -77,7 +79,7 @@
     </div>
     <div class="ml-auto flex gap-2">
       <button id="btnDeal" class="no-tap px-4 h-12 rounded-xl bg-emerald-600 active:bg-emerald-700 text-white text-sm font-semibold">Deal</button>
-      <button id="btnExport" class="no-tap px-5 h-12 rounded-xl bg-amber-500 active:bg-amber-600 text-white text-sm font-semibold">Export ZIP</button>
+      <button id="btnExport" class="no-tap px-5 h-12 rounded-xl bg-brand active:bg-brand-dark text-white text-sm font-semibold">Export ZIP</button>
     </div>
   </div>
 </div>
@@ -264,7 +266,7 @@ const GROUPS = {
   paint:      { label: "Paint & Wall Repair", items: ["ig-07","ig-08","ig-09","ig-19"] },
   doors:      { label: "Doors",               items: ["ig-10","ig-11","ig-12","ig-13","ig-14","ig-15","ig-16","ig-17","ig-18"] },
   pest:       { label: "Pest Control",        items: ["ig-23","ig-24"] },
-  general:    { label: "General & Labor",     items: ["ig-20","ig-21","ig-25","ig-26","ig-27","ig-28"] },
+  general:    { label: "General & Labor (Whole-House)", items: ["ig-20","ig-21","ig-25","ig-26","ig-27","ig-28"] },
   lighting:   { label: "Lighting",            items: ["ig-22"] },
   closet:     { label: "Closet",              items: ["ig-12","ig-11"] },
   // Kitchen
@@ -555,6 +557,15 @@ function render() {
       </div>
     </div>`);
 
+  // --- Reset current property ---
+  parts.push(`
+    <div class="mt-6 mb-2 flex justify-center">
+      <button data-act="resetProject"
+        class="no-tap px-4 h-10 rounded-xl text-sm font-semibold text-rose-600 bg-rose-50 active:bg-rose-100 border border-rose-200">
+        Reset Property
+      </button>
+    </div>`);
+
   main.innerHTML = parts.join("");
   refreshTotals();
   renderPhotoThumbs(p);
@@ -607,7 +618,7 @@ function groupHTML(room, gid, p) {
         ${rows}
       </div>
       <div class="flex items-center gap-3 px-3 py-2 border-t border-slate-100">
-        <button data-act="addItem" data-i="${room.instanceId}" data-g="${gid}" class="no-tap text-sm font-medium text-amber-600 active:text-amber-700">+ Add item</button>
+        <button data-act="addItem" data-i="${room.instanceId}" data-g="${gid}" class="no-tap text-sm font-medium text-brand active:text-brand-dark">+ Add item</button>
         ${removed.length ? `<button data-act="restoreGroup" data-i="${room.instanceId}" data-g="${gid}" class="no-tap text-xs text-slate-400 ml-auto">Restore removed (${removed.length})</button>` : ""}
       </div>
     </div>
@@ -627,7 +638,7 @@ function lineHTML(room, gid, itemId, p, gs) {
   return `
   <div class="flex items-start gap-2 px-3 py-2 border-t border-slate-100">
     <input type="checkbox" data-act="check" data-i="${room.instanceId}" data-g="${gid}" data-it="${itemId}"
-      id="ck_${k}" ${ls.checked ? "checked" : ""} class="w-5 h-5 mt-1 rounded accent-amber-500 shrink-0" />
+      id="ck_${k}" ${ls.checked ? "checked" : ""} class="w-5 h-5 mt-1 rounded accent-brand shrink-0" />
     <div class="min-w-0 flex-1">
       <div class="text-sm text-slate-800 leading-snug break-words">${esc(m.name)}</div>
       <div class="text-[11px] text-slate-400">per ${esc(m.unit || "ea.")}</div>
@@ -635,7 +646,7 @@ function lineHTML(room, gid, itemId, p, gs) {
     <div class="shrink-0 flex items-center gap-1.5">
       <input type="number" inputmode="decimal" min="0" step="any" data-act="qty" data-i="${room.instanceId}" data-g="${gid}" data-it="${itemId}"
         value="${ls.qty}" class="w-12 text-center rounded-lg border border-slate-300 py-1.5" aria-label="Quantity" />
-      <button data-act="cost" data-it="${itemId}" class="no-tap w-14 text-right text-xs ${over ? "text-amber-600 font-semibold" : "text-slate-500"}" aria-label="Edit unit cost">
+      <button data-act="cost" data-it="${itemId}" class="no-tap w-14 text-right text-xs ${over ? "text-brand font-semibold" : "text-slate-500"}" aria-label="Edit unit cost">
         ${money(cost)}${over ? " *" : ""}
       </button>
       <span id="lt_${k}" class="w-16 text-right text-xs font-semibold text-slate-800">$0.00</span>
@@ -738,8 +749,27 @@ main.addEventListener("click", e => {
     p.removed = p.removed.filter(x => !ids.includes(x)); render(); save();
   } else if (act === "addItem") {
     openAddItemModal(btn.dataset.i, btn.dataset.g);
+  } else if (act === "resetProject") {
+    confirmModal("Reset this property? This clears all selections and photos and can't be undone.", () => { resetCurrentProject(); });
   }
 });
+
+// Clear the CURRENT project to empty: removes all selections, quantities, notes,
+// per-project price overrides, custom items, and photos (blobs deleted from
+// IndexedDB too). Keeps the project and its rooms; never touches other projects.
+async function resetCurrentProject() {
+  const p = activeProject(); if (!p) return;
+  for (const ph of p.photos) { try { await Photos.del(ph.id); } catch (e) {} }
+  p.photos = [];
+  p.notes = "";
+  p.priceOverrides = {};
+  p.customItems = {};
+  p.removed = [];
+  p.deal = { arv: "", rulePct: STATE.settings.maoRulePct, purchase: "" };
+  for (const room of p.rooms) room.groups = {}; // wipes checks, quantities, no-action
+  save(); render();
+  toast("Property reset.");
+}
 
 let _saveT = null;
 function saveDebounced() { clearTimeout(_saveT); _saveT = setTimeout(save, 400); }
@@ -806,17 +836,17 @@ function confirmModal(msg, onYes) {
 function openProjects() {
   const rows = STATE.order.map(id => {
     const p = STATE.projects[id], active = id === STATE.activeId;
-    return `<div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 ${active ? "bg-amber-50" : ""}">
+    return `<div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 ${active ? "bg-brand-light" : ""}">
       <button data-switch="${id}" class="flex-1 text-left">
-        <div class="font-medium text-slate-800">${esc(p.name)} ${active ? '<span class="text-amber-600 text-xs">• current</span>' : ""}</div>
+        <div class="font-medium text-slate-800">${esc(p.name)} ${active ? '<span class="text-brand text-xs">• current</span>' : ""}</div>
         <div class="text-xs text-slate-400">${p.rooms.length} rooms · ${money(calc(p).grand)}</div>
       </button>
-      <button data-rename="${id}" class="w-9 h-9 rounded-lg active:bg-slate-100">✏️</button>
-      <button data-del="${id}" class="w-9 h-9 rounded-lg active:bg-rose-50 text-rose-500">🗑</button>
+      <button data-rename="${id}" class="shrink-0 px-3 h-9 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 active:bg-slate-200">Edit</button>
+      <button data-del="${id}" class="shrink-0 px-3 h-9 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 active:bg-rose-100">Remove</button>
     </div>`;
   }).join("");
   overlay(sheetHeader("Projects") + rows + `
-    <div class="p-4"><button id="btnNewProject" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">+ New Project</button></div>`);
+    <div class="p-4"><button id="btnNewProject" class="w-full h-12 rounded-xl bg-brand text-white font-semibold">+ New Project</button></div>`);
 
   sheetRoot.querySelectorAll("[data-switch]").forEach(b => b.addEventListener("click", () => {
     STATE.activeId = b.dataset.switch; save(); closeSheet(); ui.openRooms.clear(); ui.openGroups.clear(); render(); syncProjectBtn();
@@ -828,7 +858,7 @@ function openProjects() {
 function promptNewProject() {
   overlay(sheetHeader("New Project") + `<div class="p-4">
     <input id="npName" placeholder="Property address / name" class="w-full h-12 rounded-xl border border-slate-300 px-3 mb-3" />
-    <button id="npCreate" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">Create</button></div>`);
+    <button id="npCreate" class="w-full h-12 rounded-xl bg-brand text-white font-semibold">Create</button></div>`);
   setTimeout(() => $("#npName").focus(), 50);
   $("#npCreate").addEventListener("click", () => {
     const name = $("#npName").value.trim() || "Untitled Property";
@@ -840,14 +870,14 @@ function renameProject(id) {
   const p = STATE.projects[id];
   overlay(sheetHeader("Rename Project") + `<div class="p-4">
     <input id="rnName" value="${esc(p.name)}" class="w-full h-12 rounded-xl border border-slate-300 px-3 mb-3" />
-    <button id="rnSave" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">Save</button></div>`);
+    <button id="rnSave" class="w-full h-12 rounded-xl bg-brand text-white font-semibold">Save</button></div>`);
   $("#rnSave").addEventListener("click", () => { p.name = $("#rnName").value.trim() || p.name; save(); openProjects(); syncProjectBtn(); });
 }
 function renameRoom(instanceId) {
   const room = getRoom(instanceId); if (!room) return;
   overlay(sheetHeader("Rename Room") + `<div class="p-4">
     <input id="rrName" value="${esc(room.label)}" class="w-full h-12 rounded-xl border border-slate-300 px-3 mb-3" />
-    <button id="rrSave" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">Save</button></div>`);
+    <button id="rrSave" class="w-full h-12 rounded-xl bg-brand text-white font-semibold">Save</button></div>`);
   setTimeout(() => $("#rrName").focus(), 50);
   $("#rrSave").addEventListener("click", () => { const v = $("#rrName").value.trim(); if (v) room.label = v; save(); closeSheet(); render(); });
 }
@@ -907,7 +937,7 @@ function openCostModal(itemId) {
       <input id="ocVal" type="number" inputmode="decimal" step="any" value="${proj != null ? proj : (glob != null ? glob : base)}"
         class="mt-1 w-full h-12 rounded-xl border border-slate-300 px-3" /></label>
     <div class="grid grid-cols-1 gap-2">
-      <button id="ocProj" class="h-12 rounded-xl bg-amber-500 text-white font-semibold">Save for this project only</button>
+      <button id="ocProj" class="h-12 rounded-xl bg-brand text-white font-semibold">Save for this project only</button>
       <button id="ocGlob" class="h-12 rounded-xl bg-slate-800 text-white font-semibold">Update global standard price</button>
       <button id="ocReset" class="h-11 rounded-xl bg-slate-100 text-slate-600 font-medium">Reset to CSV default</button>
     </div>
@@ -929,7 +959,7 @@ function openAddItemModal(instanceId, gid) {
       <input id="aiCost" type="number" inputmode="decimal" step="any" placeholder="Unit cost" class="flex-1 h-12 rounded-xl border border-slate-300 px-3" />
       <input id="aiUnit" placeholder="Unit (e.g. ea.)" class="flex-1 h-12 rounded-xl border border-slate-300 px-3" />
     </div>
-    <button id="aiSave" class="w-full h-12 rounded-xl bg-amber-500 text-white font-semibold">Add item</button>
+    <button id="aiSave" class="w-full h-12 rounded-xl bg-brand text-white font-semibold">Add item</button>
   </div>`);
   setTimeout(() => $("#aiName").focus(), 50);
   $("#aiSave").addEventListener("click", () => {
@@ -963,7 +993,7 @@ function openPriceSchedule() {
         <div class="min-w-0 flex-1"><div class="text-sm text-slate-700 truncate">${esc(m.name)}</div>
           <div class="text-[11px] text-slate-400">default ${money(m.cost)} / ${esc(m.unit)}</div></div>
         <input type="number" inputmode="decimal" step="any" data-gp="${id}" value="${g != null ? g : ""}" placeholder="${m.cost}"
-          class="w-24 h-10 text-right rounded-lg border ${g != null ? "border-amber-400 text-amber-700 font-semibold" : "border-slate-300"} px-2" />
+          class="w-24 h-10 text-right rounded-lg border ${g != null ? "border-brand text-brand-dark font-semibold" : "border-slate-300"} px-2" />
       </div>`;
     }
   }
@@ -972,7 +1002,7 @@ function openPriceSchedule() {
     body +
     `<div class="p-4 sticky bottom-0 bg-white border-t border-slate-100 flex gap-2">
       <button id="psReset" class="flex-1 h-11 rounded-xl bg-slate-100 font-medium">Reset all</button>
-      <button id="psDone" class="flex-1 h-11 rounded-xl bg-amber-500 text-white font-semibold">Done</button></div>`);
+      <button id="psDone" class="flex-1 h-11 rounded-xl bg-brand text-white font-semibold">Done</button></div>`);
   sheetRoot.querySelectorAll("[data-gp]").forEach(inp => inp.addEventListener("change", () => {
     const id = inp.dataset.gp, v = parseFloat(inp.value);
     if (inp.value.trim() === "" || isNaN(v)) delete STATE.global.overrides[id]; else STATE.global.overrides[id] = v;
