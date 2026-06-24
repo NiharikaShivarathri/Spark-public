@@ -42,18 +42,20 @@
 
 <!-- ============================ APP HEADER ============================ -->
 <header class="safe-top sticky top-0 z-30 bg-white text-slate-800 border-b border-slate-200 shadow-sm">
-  <div class="flex items-center gap-2 px-3 h-14">
-    <img src="./Spark%20Group%20-%20Logo.png" alt="Spark Homes" class="h-8 w-auto"
+  <!-- Direct flex children so the selector can shrink/truncate; only the menu is
+       fixed. Mobile shows the compact icon mark; md+ shows the full wordmark. -->
+  <div class="flex items-center gap-2 h-14" style="padding-left:max(0.75rem,env(safe-area-inset-left));padding-right:max(0.75rem,env(safe-area-inset-right))">
+    <img src="./logo-mark.png" alt="Spark Homes" class="md:hidden h-8 w-auto shrink-0"
          onerror="this.style.display='none'"/>
-    <div class="leading-tight">
-      <div class="text-sm font-semibold text-slate-800">Repair Estimator</div>
+    <img src="./Spark%20Group%20-%20Logo.png" alt="Spark Homes" class="hidden md:block h-8 w-auto shrink-0"
+         onerror="this.style.display='none'"/>
+    <div class="min-w-0 flex-1 leading-tight">
+      <div class="text-sm font-semibold text-slate-800 truncate">Repair Estimator</div>
     </div>
-    <div class="ml-auto flex items-center gap-1.5">
-      <button id="btnProjects" class="no-tap px-3.5 h-10 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-700 text-sm font-medium max-w-[44vw] truncate">
-        Project ▾
-      </button>
-      <button id="btnMenu" class="no-tap w-10 h-10 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-700 text-lg" aria-label="Menu">⋯</button>
-    </div>
+    <button id="btnProjects" class="no-tap shrink min-w-0 max-w-[40vw] truncate px-3.5 h-10 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-700 text-sm font-medium">
+      Project ▾
+    </button>
+    <button id="btnMenu" class="no-tap shrink-0 w-10 h-10 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-700 text-lg" aria-label="Menu">⋯</button>
   </div>
   <!-- progress bar -->
   <div class="px-3 pb-2">

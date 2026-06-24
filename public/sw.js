@@ -7,7 +7,7 @@
      back to the cached index.html when offline.
    Bump CACHE to invalidate old assets on deploy. */
 
-const CACHE = "spark-est-v5";
+const CACHE = "spark-est-v6";
 
 const SHELL = [
   "./",
@@ -15,6 +15,7 @@ const SHELL = [
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
+  "./logo-mark.png",
   "./Spark Group - Logo.png",
 ];
 
