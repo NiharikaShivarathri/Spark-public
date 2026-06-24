@@ -1,0 +1,18 @@
+# Netlify configuration — static site, no build step.
+# The app is a self-contained PWA living in public/.
+[build]
+  publish = "public"
+  command = ""
+
+# Make sure the service worker and manifest are served with correct types
+# and never aggressively cached (so updates roll out), while hashed assets
+# can be cached hard. The SW itself controls app caching at runtime.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache"
