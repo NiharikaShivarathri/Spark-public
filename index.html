@@ -522,7 +522,14 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function money(n) {
-  return "$" + (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const v = Number(n) || 0;
+  const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (v < 0 ? "-$" : "$") + abs; // minus before the $, e.g. -$9,210.35
+}
+// Explicit US M/D/YYYY date so the format is stable regardless of device locale.
+function usDate(date) {
+  const dt = date || new Date();
+  return (dt.getMonth() + 1) + "/" + dt.getDate() + "/" + dt.getFullYear();
 }
 
 function render() {
@@ -1105,21 +1112,41 @@ function openDeal() {
     const rule = parseFloat($("#dRule").value); const r = isNaN(rule) ? 70 : rule;
     const buy = parseFloat($("#dBuy").value);
     const repairs = calc(p).grand;
-    const arvRule = arv * (r / 100);
-    const mao = arvRule - repairs;
-    $("#dRepairs").textContent = money(repairs);
-    $("#dArvRule").textContent = money(arvRule);
-    $("#dMao").textContent = money(mao);
-    let v = "";
-    if (!isNaN(buy)) {
-      const margin = arv - buy - repairs;
-      const ok = buy <= mao;
-      v = `<div class="flex justify-between"><span class="text-slate-300">Projected margin at your price</span><span class="font-semibold ${margin >= 0 ? "text-emerald-300" : "text-rose-300"}">${money(margin)}</span></div>
-           <div class="mt-1 font-semibold ${ok ? "text-emerald-300" : "text-rose-300"}">${ok ? "✓ At/under MAO — deal works" : "✗ Over MAO — too rich"}</div>`;
+    $("#dRepairs").textContent = money(repairs); // repair estimate always shows
+    const hasArv = arv > 0;
+    if (!hasArv) {
+      // No ARV entered: neutral state — no negative MAO, no warning verdict.
+      $("#dArvRule").textContent = "—";
+      $("#dMao").textContent = "—";
+      $("#dMao").className = "text-2xl font-bold text-slate-400";
+      $("#dVerdict").innerHTML = `<div class="font-semibold text-slate-300">Enter an ARV to see the offer</div>`;
     } else {
-      v = `<div class="text-slate-300 text-xs">Built-in margin at MAO: ${money(arv * (1 - r / 100))}. Enter a purchase price to test a specific offer.</div>`;
+      const arvRule = arv * (r / 100);
+      const mao = arvRule - repairs;
+      const viable = mao >= 0;
+      $("#dArvRule").textContent = money(arvRule);
+      if (viable) {
+        $("#dMao").textContent = money(mao);
+        $("#dMao").className = "text-2xl font-bold text-amber-300";
+      } else {
+        $("#dMao").textContent = "$0 — no viable offer";
+        $("#dMao").className = "text-2xl font-bold text-rose-300";
+      }
+      let v = "";
+      if (!isNaN(buy)) {
+        const margin = arv - buy - repairs;
+        const ok = viable && buy <= mao;
+        v = `<div class="flex justify-between"><span class="text-slate-300">Projected margin at your price</span><span class="font-semibold ${margin >= 0 ? "text-emerald-300" : "text-rose-300"}">${money(margin)}</span></div>
+           <div class="mt-1 font-semibold ${ok ? "text-emerald-300" : "text-rose-300"}">${ok ? "✓ At/under MAO — deal works" : "✗ Over MAO — too rich"}</div>`;
+      } else if (viable) {
+        v = `<div class="font-semibold text-emerald-300">✓ GO — offer up to ${money(mao)} keeps your margin</div>
+           <div class="text-slate-300 text-xs mt-1">Built-in margin at MAO: ${money(arv * (1 - r / 100))}. Enter a purchase price to test a specific offer.</div>`;
+      } else {
+        v = `<div class="font-semibold text-rose-300">✗ NO-GO — deal doesn't work at a positive offer</div>
+           <div class="text-slate-300 text-xs mt-1">Repairs (${money(repairs)}) exceed ARV × ${r}% (${money(arvRule)}).</div>`;
+      }
+      $("#dVerdict").innerHTML = v;
     }
-    $("#dVerdict").innerHTML = v;
     // persist
     p.deal = { arv: $("#dArv").value, rulePct: $("#dRule").value, purchase: $("#dBuy").value };
     saveDebounced();
@@ -1178,6 +1205,8 @@ async function buildWorkbook(p) {
   let rule = parseFloat(p.deal && p.deal.rulePct); if (isNaN(rule)) rule = 70;
   const mao = arv * (rule / 100) - repairs;
   const margin = arv - mao - repairs; // built-in margin at the max offer
+  const hasArv = arv > 0;             // no ARV entered → neutral, not a "no margin" warning
+  const viable = mao >= 0;            // ARV entered and offer is positive → GO
 
   function mk(){ return { "!merges":[], _maxR:0, _maxC:0 }; }
   function put(ws,r,c,v,s,z){
@@ -1216,15 +1245,15 @@ async function buildWorkbook(p) {
   const rows=[]; const setH=(r,h)=>{rows[r]={hpt:h};}; let R=0;
   band(d,R,0,R,lastCol,"  SPARK HOMES",{font:font({sz:20,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.slate}},alignment:leftMid}); setH(R,30); R++;
   band(d,R,0,R,lastCol,"  REPAIR ESTIMATE · Property Cost Dashboard",{font:font({sz:11,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.orange}},alignment:leftMid}); setH(R,20); R++;
-  band(d,R,0,R,lastCol,"  Property: "+(p.name||"—")+"        Date: "+new Date().toLocaleDateString(),{font:font({sz:9,color:{rgb:C.meta}}),alignment:leftMid}); setH(R,16); R++;
+  band(d,R,0,R,lastCol,"  Property: "+(p.name||"—")+"        Date: "+usDate(),{font:font({sz:9,color:{rgb:C.meta}}),alignment:leftMid}); setH(R,16); R++;
   R++;
   const cardCols=[[0,4],[6,10],[12,16],[18,22]];
-  const marginAccent = margin>0 ? C.green : C.red;
+  const marginAccent = !hasArv ? C.grey : (margin>0 ? C.green : C.red);
   const kpis=[
     {label:"TOTAL REPAIRS", val:repairs, accent:C.orange},
-    {label:"AFTER-REPAIR VALUE", val:arv, accent:C.slate},
-    {label:"MAX OFFER ("+rule+"%)", val:mao, accent:C.orange},
-    {label:"PROJECTED MARGIN", val:margin, accent:marginAccent},
+    {label:"AFTER-REPAIR VALUE", val:hasArv?arv:"—", accent:C.slate},
+    {label:"MAX OFFER ("+rule+"%)", val:hasArv?mao:"—", accent:C.orange},
+    {label:"PROJECTED MARGIN", val:hasArv?margin:"—", accent:marginAccent},
   ];
   const SR=R; setH(SR,5); setH(SR+1,14); setH(SR+2,16); setH(SR+3,16);
   kpis.forEach((k,i)=>{
@@ -1235,9 +1264,12 @@ async function buildWorkbook(p) {
     borderRect(d,SR,c0,SR+3,c1,C.line);
   });
   R=SR+4; R++;
-  const go = margin>0;
-  band(d,R,0,R,lastCol, go?"✓ GO — MARGIN PRESENT AT MAX OFFER":"⚠ REVIEW — NO MARGIN AT MAX OFFER",
-    {font:font({sz:12,bold:true,color:{rgb:go?C.green:C.red}}),fill:{fgColor:{rgb:go?C.greenBg:C.redBg}},alignment:center}); setH(R,22); R++; R++;
+  let vText, vFg, vBg;
+  if (!hasArv)      { vText="ENTER AN ARV TO SEE THE OFFER"; vFg=C.grey;  vBg=C.shade; }
+  else if (viable)  { vText="✓ GO — MARGIN PRESENT AT MAX OFFER"; vFg=C.green; vBg=C.greenBg; }
+  else              { vText="✗ NO-GO — DEAL DOESN'T WORK AT A POSITIVE OFFER"; vFg=C.red; vBg=C.redBg; }
+  band(d,R,0,R,lastCol, vText,
+    {font:font({sz:12,bold:true,color:{rgb:vFg}}),fill:{fgColor:{rgb:vBg}},alignment:center}); setH(R,22); R++; R++;
   band(d,R,0,R,lastCol,"  COST BY SECTION / ROOM",{font:font({sz:11,bold:true,color:{rgb:C.slate}}),alignment:leftMid}); setH(R,18); R++;
   const scopes = p.rooms.map(rm=>({label:rm.label, val:calcRes.roomSub[rm.instanceId]||0})).filter(s=>s.val>0).sort((a,b)=>b.val-a.val);
   const maxVal = scopes.length?scopes[0].val:0;
@@ -1263,7 +1295,7 @@ async function buildWorkbook(p) {
   const li = mk(); li["!cols"]=[{wch:22},{wch:20},{wch:42},{wch:12},{wch:8},{wch:13},{wch:14}];
   const LCOL=6; const liRows=[]; let r2=0;
   band(li,r2,0,r2,LCOL,"SPARK HOMES — Repair Estimate · Line Items",{font:font({sz:14,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.slate}},alignment:leftMid}); liRows[r2]={hpt:24}; r2++;
-  band(li,r2,0,r2,LCOL,"Property: "+(p.name||"—")+"        Date: "+new Date().toLocaleDateString(),{font:font({sz:9,color:{rgb:C.meta}}),alignment:leftMid}); r2++;
+  band(li,r2,0,r2,LCOL,"Property: "+(p.name||"—")+"        Date: "+usDate(),{font:font({sz:9,color:{rgb:C.meta}}),alignment:leftMid}); r2++;
   r2++;
   const headerRow=r2;
   const heads=["Section / Room","Group","Item","Unit","Qty","Unit Cost","Line Total"];
