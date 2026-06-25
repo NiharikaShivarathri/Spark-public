@@ -1,7 +1,22 @@
-# Confidential contest source material — do not redistribute publicly.
+# Confidential contest source material — never commit or publish.
 Contest Briefing.docx
+Contest_Briefing.docx
 Example App.html
+Example_App.html
 Pricing List.csv
+Pricing_List.csv
+
+# Internal planning / spec / writeup / notes — not for publication.
+DATA_MODEL.md
+SPEC.md
+PLAN.md
+DECISIONS.md
+QA_CHECKLIST.md
+claude.md
+CLAUDE.md
+notes.md
+NOTES.md
+*.notes.md
 
 # OS / tooling
 .DS_Store
