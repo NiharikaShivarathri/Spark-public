@@ -21,3 +21,4 @@ NOTES.md
 # OS / tooling
 .DS_Store
 node_modules/
+netlify.toml

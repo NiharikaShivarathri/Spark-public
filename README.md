@@ -12,9 +12,9 @@ quantities, snap photos, watch a running total, and export a ZIP (Excel + photos
 - **Vanilla JS / HTML / CSS**, organized into clear modules in one file:
   `DATA · PERSISTENCE · PHOTOS · MODEL · COMPUTE · RENDER · HANDLERS · SHEETS ·
   PHOTOS-UI · DEAL · EXPORT · BOOT`.
-- **Prices come only from `Pricing_List.csv`** (108 items). The CSV is embedded
-  verbatim and parsed at runtime — it stays the single source of truth, and the
-  app still works as one offline file. Prices are never hand-keyed into JS.
+- **Single canonical price catalog** (108 items) embedded verbatim in `index.html`
+  and parsed at runtime — one source of truth, so the app works as one offline
+  file with no network fetch for pricing. Prices are never hand-keyed into JS.
 - **Reliable storage:** structured data (projects, selections, quantities, notes,
   price overrides) in `localStorage`, guarded with try/catch; **photo blobs in
   IndexedDB** (only metadata in localStorage) so a few photos can't blow the
@@ -79,5 +79,7 @@ install. Test in airplane mode after the first online load.
 
 ## Notes / limitations
 
-See `DECISIONS.md` for the full decision log and `SPEC.md` / `DATA_MODEL.md` for
-the feature→rubric map and the full 108-item → group mapping.
+- Photo blobs live in IndexedDB (only metadata in localStorage) to avoid the
+  localStorage quota corrupting saved state.
+- Pricing, the section/group mapping, and adjustable room templates are all
+  defined in `index.html`; editing the embedded catalog updates the whole app.
