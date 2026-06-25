@@ -57,24 +57,39 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
 
+  // Network-first for the HTML shell so a new deploy shows on the next online
+  // load without bumping CACHE. Everything else (CDN libs, icons, logo) stays
+  // cache-first so offline use and export keep working.
+  const url = new URL(req.url);
+  const isShell = req.mode === "navigate" ||
+    (url.origin === self.location.origin && /\/(index\.html)?$/.test(url.pathname));
+
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
+
+    if (isShell) {
+      try {
+        const res = await fetch(req);
+        if (res && (res.ok || res.type === "opaque")) {
+          try { await cache.put(req, res.clone()); } catch (e) {}
+        }
+        return res;
+      } catch (e) {
+        // Offline: fall back to the cached shell.
+        const fallback = await cache.match(req) || await cache.match("./index.html");
+        if (fallback) return fallback;
+        throw e;
+      }
+    }
+
+    // Cache-first for static/CDN assets.
     const cached = await cache.match(req, { ignoreSearch: false });
     if (cached) return cached;
-    try {
-      const res = await fetch(req);
-      // Stash a copy for next time (same-origin and CDN alike).
-      if (res && (res.ok || res.type === "opaque")) {
-        try { await cache.put(req, res.clone()); } catch (e) {}
-      }
-      return res;
-    } catch (e) {
-      // Offline and not cached: for navigations, serve the app shell.
-      if (req.mode === "navigate") {
-        const fallback = await cache.match("./index.html");
-        if (fallback) return fallback;
-      }
-      throw e;
+    const res = await fetch(req);
+    // Stash a copy for next time (same-origin and CDN alike).
+    if (res && (res.ok || res.type === "opaque")) {
+      try { await cache.put(req, res.clone()); } catch (e) {}
     }
+    return res;
   })());
 });

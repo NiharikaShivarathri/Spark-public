@@ -258,10 +258,9 @@ const CATALOG = (function () {
 
 /* Group templates. Item→group mapping per the approved DATA_MODEL.md.
    "general" is the additive 20th group (DECISION 1); the 19 brief groups
-   remain individually present. "lighting"/"closet" are room-instance groups
-   (DECISION 4). A catalog item may appear in more than one group template
-   (e.g. bifold door in both Doors and Closet) — selection state is stored
-   per room-instance + group, so there is no collision. */
+   remain individually present. "lighting" is a room-instance group
+   (DECISION 4). Each catalog item belongs to a single group so it can never
+   be checked twice within one room and double-counted. */
 const GROUPS = {
   // Interior / General
   flooring:   { label: "Flooring",            items: ["ig-01","ig-02","ig-03","ig-04","ig-05","ig-06"] },
@@ -270,7 +269,6 @@ const GROUPS = {
   pest:       { label: "Pest Control",        items: ["ig-23","ig-24"] },
   general:    { label: "General & Labor (Whole-House)", items: ["ig-20","ig-21","ig-25","ig-26","ig-27","ig-28"] },
   lighting:   { label: "Lighting",            items: ["ig-22"] },
-  closet:     { label: "Closet",              items: ["ig-12","ig-11"] },
   // Kitchen
   cabinets:   { label: "Cabinets",            items: ["kt-01","kt-02","kt-03","kt-04","kt-05","kt-08"] },
   counters:   { label: "Countertops & Tile",  items: ["kt-06","kt-07","kt-09","kt-10","kt-11"] },
@@ -302,7 +300,7 @@ const ROOM_TYPES = {
   exterior: { label: "Exterior",            singleton: true,  icon: "🌳", groups: ["fence","siding","windows","garage","trees"] },
   kitchen:  { label: "Kitchen",             singleton: false, icon: "🍳", groups: ["cabinets","counters","appliances"] },
   bathroom: { label: "Bathroom",            singleton: false, icon: "🛁", groups: ["vanity","tubshower","tile"] },
-  bedroom:  { label: "Bedroom",             singleton: false, icon: "🛏️", groups: ["flooring","paint","doors","closet"] },
+  bedroom:  { label: "Bedroom",             singleton: false, icon: "🛏️", groups: ["flooring","paint","doors"] },
   living:   { label: "Living / Common",     singleton: false, icon: "🛋️", groups: ["flooring","paint","doors","lighting"] },
 };
 const ADDABLE_TYPES = ["bathroom","bedroom","kitchen","living"];
@@ -697,10 +695,16 @@ main.addEventListener("input", e => {
   if (t.dataset.act === "qty") {
     const room = getRoom(t.dataset.i), gs = ensureGS(room, t.dataset.g), ls = ensureLine(gs, t.dataset.it);
     let v = parseFloat(t.value); if (isNaN(v) || v < 0) v = 0;
-    ls.qty = v; ls.checked = v > 0;
-    const ck = document.getElementById("ck_" + t.dataset.i + "|" + t.dataset.g + "|" + t.dataset.it);
-    if (ck) ck.checked = ls.checked;
-    if (ls.checked && gs.noAction) { gs.noAction = false; render(); }
+    ls.qty = v;
+    // A positive qty checks the row live; an empty/0 field is NOT unchecked
+    // mid-edit (that flickers the row). Unchecking waits for commit on blur/
+    // change below. Totals stay correct because qty 0 contributes 0.
+    if (v > 0 && !ls.checked) {
+      ls.checked = true;
+      const ck = document.getElementById("ck_" + t.dataset.i + "|" + t.dataset.g + "|" + t.dataset.it);
+      if (ck) ck.checked = true;
+      if (gs.noAction) { gs.noAction = false; render(); }
+    }
     refreshTotals(); save();
   } else if (t.id === "notesArea") {
     activeProject().notes = t.value; saveDebounced();
@@ -709,7 +713,16 @@ main.addEventListener("input", e => {
 
 main.addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset.act === "check") {
+  if (t.dataset.act === "qty") {
+    // Commit (blur/change): an empty or 0 quantity now counts as unchecked.
+    const room = getRoom(t.dataset.i), gs = ensureGS(room, t.dataset.g), ls = ensureLine(gs, t.dataset.it);
+    let v = parseFloat(t.value); if (isNaN(v) || v < 0) v = 0;
+    ls.qty = v; ls.checked = v > 0;
+    const ck = document.getElementById("ck_" + t.dataset.i + "|" + t.dataset.g + "|" + t.dataset.it);
+    if (ck) ck.checked = ls.checked;
+    t.value = v; // normalize an empty field to its committed value
+    refreshTotals(); save();
+  } else if (t.dataset.act === "check") {
     const room = getRoom(t.dataset.i), gs = ensureGS(room, t.dataset.g), ls = ensureLine(gs, t.dataset.it);
     ls.checked = t.checked;
     if (ls.checked && (!ls.qty || ls.qty <= 0)) ls.qty = 1;
@@ -985,7 +998,7 @@ function openAddItemModal(instanceId, gid) {
 function openPriceSchedule() {
   const p = activeProject();
   const sections = [
-    ["Interior / General", ["flooring","paint","doors","pest","general","lighting","closet"]],
+    ["Interior / General", ["flooring","paint","doors","pest","general","lighting"]],
     ["Kitchen", ["cabinets","counters","appliances"]],
     ["Bathrooms", ["vanity","tubshower","tile"]],
     ["Systems & Structure", ["hvac","electrical","structural","insulation"]],
