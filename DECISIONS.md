@@ -181,3 +181,27 @@ what ships next) and the live-interview walkthrough.
   Garage, Trees & Grounds) **+ General & Labor (Whole-House)**. No group duplicated
   or split (verified: no two groups share an item set). Lighting & Closet remain
   separate per-room (Living/Bedroom) templates, not part of the 20.
+
+## Branded two-sheet Excel export
+
+- **Dashboard + Line Items**, both styled entirely via xlsx-js-style cell `.s`
+  objects (no native charts). The dashboard is composed on a uniform 24-col grid
+  (width 3.4) using merged cells to build the title/subtitle bands, four KPI cards
+  (accent stripe + grey label + big value), a green/red verdict banner, and a
+  **cell-based** horizontal bar chart (ceil(value/max × 12) orange cells over a
+  light track), sorted descending, with an orange grand-total row. Arial
+  throughout; `$#,##0` on the dashboard, `$#,##0.00` on detail. Palette: orange
+  #C8512A, slate #1F2A37, card #F8FAFC, track #EFE3DC, green #15803D on #DCFCE7.
+- **KPIs come from the live Deal Analyzer** (repairs = `calc().grand`; ARV/rule
+  from `p.deal`; `MAO = ARV×rule% − repairs`; margin = ARV − MAO − repairs). Every
+  total on both sheets uses the same `resolvedCost()` as the UI; verified the
+  Dashboard "Total Repairs", the cost-by-scope sum, and the Line Items grand total
+  all equal the on-screen grand total exactly.
+- **Frozen header workaround:** this xlsx-js-style build has no freeze-pane writer
+  (the `!freeze` property is silently dropped — confirmed: no `<pane>` emitted).
+  Since JSZip is already bundled, `buildWorkbook` is now async and post-processes
+  the written .xlsx, injecting `<pane … state="frozen"/>` into the Line Items
+  sheet's `sheetView`. Falls back to the unfrozen workbook if anything throws.
+- The target file referenced in the request wasn't present in the workspace, so
+  this was built to the written spec; layout verified via a faithful HTML render
+  of the actual styled cells (no LibreOffice available to render .xlsx directly).

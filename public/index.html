@@ -1141,7 +1141,7 @@ async function doExport() {
   }
   toast("Building ZIP…");
   try {
-    const wbout = buildWorkbook(p);
+    const wbout = await buildWorkbook(p);
     const zip = new JSZip();
     zip.file(safeName(p.name) + "_estimate.xlsx", wbout);
     if (p.photos.length) {
@@ -1160,54 +1160,171 @@ async function doExport() {
   }
 }
 
-function buildWorkbook(p) {
-  const c = calc(p);
-  const aoa = [];
-  aoa.push(["Spark Homes — Repair Estimate"]);
-  aoa.push(["Property", p.name, "", "", "", "Date", new Date().toLocaleDateString()]);
-  aoa.push([]);
-  const headerRow = aoa.length;
-  aoa.push(["Section / Room", "Group", "Item", "Unit", "Qty", "Unit Cost", "Line Total"]);
-  for (const room of p.rooms) {
-    for (const gid of ROOM_TYPES[room.type].groups) {
-      const gs = room.groups[gid]; if (!gs) continue;
-      for (const itemId of itemsForGroup(gid, p)) {
-        const ls = gs.lines[itemId];
-        if (ls && ls.checked) {
-          const m = itemMeta(itemId, p), cost = resolvedCost(itemId, p), qty = Number(ls.qty) || 0;
-          aoa.push([room.label, GROUPS[gid].label, m.name, m.unit, qty, cost, cost * qty]);
-        }
+/* Two-sheet branded workbook. Sheet 1 "Dashboard": title/subtitle bands, four KPI
+   cards, a verdict banner, and a cell-based horizontal bar chart of cost by scope.
+   Sheet 2 "Line Items": grouped detail with per-group subtotals + a frozen header.
+   All styling is applied via xlsx-js-style cell .s objects on a uniform 24-col grid
+   composed with merges. Every total comes from the same resolvedCost() the UI uses.
+   Built on a uniform narrow column grid composed with merged cells. */
+async function buildWorkbook(p) {
+  const ARIAL = "Arial";
+  const C = { orange:"C8512A", slate:"1F2A37", card:"F8FAFC", track:"EFE3DC",
+              green:"15803D", greenBg:"DCFCE7", red:"B91C1C", redBg:"FEE2E2",
+              grey:"64748B", line:"E2E8F0", white:"FFFFFF", meta:"475569", shade:"F1F5F9" };
+  const ENC = (r,c)=>XLSX.utils.encode_cell({r,c});
+  const calcRes = calc(p);
+  const repairs = calcRes.grand;
+  const arv = parseFloat(p.deal && p.deal.arv) || 0;
+  let rule = parseFloat(p.deal && p.deal.rulePct); if (isNaN(rule)) rule = 70;
+  const mao = arv * (rule / 100) - repairs;
+  const margin = arv - mao - repairs; // built-in margin at the max offer
+
+  function mk(){ return { "!merges":[], _maxR:0, _maxC:0 }; }
+  function put(ws,r,c,v,s,z){
+    const ref=ENC(r,c), isNum=typeof v==="number";
+    ws[ref]={ t:isNum?"n":"s", v:(v===undefined||v===null)?"":v };
+    if(s)ws[ref].s=s; if(z)ws[ref].z=z;
+    if(r>ws._maxR)ws._maxR=r; if(c>ws._maxC)ws._maxC=c;
+  }
+  function box(ws,r0,c0,r1,c1,s,z){
+    for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+      const ref=ENC(r,c); if(!ws[ref])ws[ref]={t:"s",v:""};
+      ws[ref].s=s; if(z)ws[ref].z=z;
+      if(r>ws._maxR)ws._maxR=r; if(c>ws._maxC)ws._maxC=c;
+    }
+  }
+  function mergeC(ws,r0,c0,r1,c1){ ws["!merges"].push({s:{r:r0,c:c0},e:{r:r1,c:c1}}); }
+  function band(ws,r0,c0,r1,c1,v,s,z){ box(ws,r0,c0,r1,c1,s,z); if(r1>r0||c1>c0)mergeC(ws,r0,c0,r1,c1); put(ws,r0,c0,v,s,z); }
+  function borderRect(ws,r0,c0,r1,c1,color){
+    const bd={style:"thin",color:{rgb:color}};
+    for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+      const ref=ENC(r,c); if(!ws[ref])ws[ref]={t:"s",v:""};
+      const s=Object.assign({},ws[ref].s), b=Object.assign({},s.border);
+      if(r===r0)b.top=bd; if(r===r1)b.bottom=bd; if(c===c0)b.left=bd; if(c===c1)b.right=bd;
+      s.border=b; ws[ref].s=s;
+    }
+  }
+  function finalize(ws){ ws["!ref"]=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:ws._maxR,c:ws._maxC}}); delete ws._maxR; delete ws._maxC; return ws; }
+  const font=(o)=>Object.assign({name:ARIAL},o);
+  const center={horizontal:"center",vertical:"center"};
+  const leftMid={horizontal:"left",vertical:"center"};
+  const rightMid={horizontal:"right",vertical:"center"};
+  const leftIndent={horizontal:"left",vertical:"center",indent:1};
+
+  // ===================== SHEET 1: DASHBOARD =====================
+  const d = mk(); const NC=24, lastCol=NC-1; d["!cols"]=Array.from({length:NC},()=>({wch:3.4}));
+  const rows=[]; const setH=(r,h)=>{rows[r]={hpt:h};}; let R=0;
+  band(d,R,0,R,lastCol,"  SPARK HOMES",{font:font({sz:20,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.slate}},alignment:leftMid}); setH(R,30); R++;
+  band(d,R,0,R,lastCol,"  REPAIR ESTIMATE · Property Cost Dashboard",{font:font({sz:11,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.orange}},alignment:leftMid}); setH(R,20); R++;
+  band(d,R,0,R,lastCol,"  Property: "+(p.name||"—")+"        Date: "+new Date().toLocaleDateString(),{font:font({sz:9,color:{rgb:C.meta}}),alignment:leftMid}); setH(R,16); R++;
+  R++;
+  const cardCols=[[0,4],[6,10],[12,16],[18,22]];
+  const marginAccent = margin>0 ? C.green : C.red;
+  const kpis=[
+    {label:"TOTAL REPAIRS", val:repairs, accent:C.orange},
+    {label:"AFTER-REPAIR VALUE", val:arv, accent:C.slate},
+    {label:"MAX OFFER ("+rule+"%)", val:mao, accent:C.orange},
+    {label:"PROJECTED MARGIN", val:margin, accent:marginAccent},
+  ];
+  const SR=R; setH(SR,5); setH(SR+1,14); setH(SR+2,16); setH(SR+3,16);
+  kpis.forEach((k,i)=>{
+    const cc=cardCols[i], c0=cc[0], c1=cc[1];
+    band(d,SR,c0,SR,c1,"",{fill:{fgColor:{rgb:k.accent}}});
+    band(d,SR+1,c0,SR+1,c1,"  "+k.label,{font:font({sz:8,bold:true,color:{rgb:C.grey}}),fill:{fgColor:{rgb:C.card}},alignment:leftMid});
+    band(d,SR+2,c0,SR+3,c1,k.val,{font:font({sz:16,bold:true,color:{rgb:C.slate}}),fill:{fgColor:{rgb:C.card}},alignment:leftIndent},'"$"#,##0');
+    borderRect(d,SR,c0,SR+3,c1,C.line);
+  });
+  R=SR+4; R++;
+  const go = margin>0;
+  band(d,R,0,R,lastCol, go?"✓ GO — MARGIN PRESENT AT MAX OFFER":"⚠ REVIEW — NO MARGIN AT MAX OFFER",
+    {font:font({sz:12,bold:true,color:{rgb:go?C.green:C.red}}),fill:{fgColor:{rgb:go?C.greenBg:C.redBg}},alignment:center}); setH(R,22); R++; R++;
+  band(d,R,0,R,lastCol,"  COST BY SECTION / ROOM",{font:font({sz:11,bold:true,color:{rgb:C.slate}}),alignment:leftMid}); setH(R,18); R++;
+  const scopes = p.rooms.map(rm=>({label:rm.label, val:calcRes.roomSub[rm.instanceId]||0})).filter(s=>s.val>0).sort((a,b)=>b.val-a.val);
+  const maxVal = scopes.length?scopes[0].val:0;
+  const barC0=12, barCells=lastCol-barC0+1;
+  if(!scopes.length){
+    band(d,R,0,R,lastCol,"  No costs entered yet.",{font:font({sz:10,italic:true,color:{rgb:C.grey}}),alignment:leftMid}); setH(R,16); R++;
+  } else {
+    scopes.forEach(s=>{
+      band(d,R,0,R,7,"  "+s.label,{font:font({sz:10,color:{rgb:C.slate}}),alignment:leftMid});
+      band(d,R,8,R,11,s.val,{font:font({sz:10,bold:true,color:{rgb:C.slate}}),alignment:rightMid},'"$"#,##0');
+      const fillN=Math.max(1,Math.ceil(s.val/maxVal*barCells));
+      for(let i=0;i<barCells;i++) put(d,R,barC0+i,"",{fill:{fgColor:{rgb: i<fillN?C.orange:C.track}}});
+      setH(R,16); R++;
+    });
+    band(d,R,0,R,7,"  GRAND TOTAL",{font:font({sz:10,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.orange}},alignment:leftMid});
+    band(d,R,8,R,11,repairs,{font:font({sz:10,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.orange}},alignment:rightMid},'"$"#,##0');
+    for(let i=0;i<barCells;i++) put(d,R,barC0+i,"",{fill:{fgColor:{rgb:C.orange}}});
+    setH(R,16); R++;
+  }
+  d["!rows"]=rows;
+
+  // ===================== SHEET 2: LINE ITEMS =====================
+  const li = mk(); li["!cols"]=[{wch:22},{wch:20},{wch:42},{wch:12},{wch:8},{wch:13},{wch:14}];
+  const LCOL=6; const liRows=[]; let r2=0;
+  band(li,r2,0,r2,LCOL,"SPARK HOMES — Repair Estimate · Line Items",{font:font({sz:14,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.slate}},alignment:leftMid}); liRows[r2]={hpt:24}; r2++;
+  band(li,r2,0,r2,LCOL,"Property: "+(p.name||"—")+"        Date: "+new Date().toLocaleDateString(),{font:font({sz:9,color:{rgb:C.meta}}),alignment:leftMid}); r2++;
+  r2++;
+  const headerRow=r2;
+  const heads=["Section / Room","Group","Item","Unit","Qty","Unit Cost","Line Total"];
+  heads.forEach((h,i)=>put(li,headerRow,i,h,{font:font({sz:10,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.slate}},alignment:(i===4?center:(i>=5?rightMid:(i===3?center:leftMid))),border:{bottom:{style:"medium",color:{rgb:C.orange}}}}));
+  liRows[headerRow]={hpt:18};
+  r2=headerRow+1;
+  const moneyZ='"$"#,##0.00';
+  const bf=font({sz:10,color:{rgb:C.slate}});
+  const cellL={font:bf,alignment:leftMid}, cellC={font:bf,alignment:center}, cellR={font:bf,alignment:rightMid};
+  let any=false;
+  for(const room of p.rooms){
+    for(const gid of ROOM_TYPES[room.type].groups){
+      const gs=room.groups[gid]; if(!gs) continue;
+      const ids=itemsForGroup(gid,p).filter(id=>gs.lines[id]&&gs.lines[id].checked);
+      if(!ids.length) continue;
+      any=true; let gsum=0;
+      for(const itemId of ids){
+        const m=itemMeta(itemId,p), cost=resolvedCost(itemId,p), qty=Number(gs.lines[itemId].qty)||0, lt=cost*qty; gsum+=lt;
+        put(li,r2,0,room.label,cellL); put(li,r2,1,GROUPS[gid].label,cellL); put(li,r2,2,m.name,cellL);
+        put(li,r2,3,m.unit,cellC); put(li,r2,4,qty,cellC); put(li,r2,5,cost,cellR,moneyZ); put(li,r2,6,lt,cellR,moneyZ);
+        r2++;
       }
+      const sR={font:font({sz:10,bold:true,color:{rgb:C.slate}}),fill:{fgColor:{rgb:C.shade}},alignment:rightMid};
+      const sL=Object.assign({},sR,{alignment:leftMid});
+      put(li,r2,0,"",sL); put(li,r2,1,"",sL);
+      band(li,r2,2,r2,5,"Subtotal — "+room.label+" · "+GROUPS[gid].label,sL);
+      put(li,r2,6,gsum,sR,moneyZ);
+      r2++;
     }
   }
-  aoa.push([]);
-  const totalRow = aoa.length;
-  aoa.push(["", "", "", "", "", "GRAND TOTAL", c.grand]);
+  if(!any){ band(li,r2,0,r2,LCOL,"No line items selected.",{font:font({sz:10,italic:true,color:{rgb:C.grey}}),alignment:leftMid}); r2++; }
+  r2++;
+  const gtS={font:font({sz:11,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.orange}},alignment:rightMid};
+  const gtL=Object.assign({},gtS,{alignment:leftMid});
+  put(li,r2,0,"",gtL); put(li,r2,1,"",gtL);
+  band(li,r2,2,r2,5,"GRAND TOTAL",gtL);
+  put(li,r2,6,calcRes.grand,gtS,moneyZ);
+  liRows[r2]={hpt:20};
+  li["!rows"]=liRows;
+  li["!freeze"]={ xSplit:0, ySplit:headerRow+1, topLeftCell:ENC(headerRow+1,0), activePane:"bottomLeft", state:"frozen" };
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [{ wch: 20 }, { wch: 20 }, { wch: 40 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 14 }];
-  // styles
-  const titleCell = ws["A1"]; if (titleCell) titleCell.s = { font: { bold: true, sz: 14 } };
-  const hdrStyle = { font: { bold: true, color: { rgb: "FFFFFF" } }, fill: { fgColor: { rgb: "0F172A" } }, alignment: { horizontal: "center" } };
-  for (let col = 0; col < 7; col++) {
-    const ref = XLSX.utils.encode_cell({ r: headerRow, c: col });
-    if (ws[ref]) ws[ref].s = hdrStyle;
-  }
-  // money format on cost/total columns for all data rows
-  for (let r = headerRow + 1; r <= totalRow; r++) {
-    for (const col of [5, 6]) {
-      const ref = XLSX.utils.encode_cell({ r, c: col });
-      if (ws[ref] && typeof ws[ref].v === "number") ws[ref].z = '"$"#,##0.00';
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, finalize(d), "Dashboard");
+  XLSX.utils.book_append_sheet(wb, finalize(li), "Line Items");
+  const out = XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  // This xlsx-js-style build can't write freeze panes, so inject one into the
+  // Line Items sheet (sheet2) via JSZip to keep the header row frozen.
+  try {
+    const zip = await JSZip.loadAsync(out);
+    const path = "xl/worksheets/sheet2.xml", f = zip.file(path);
+    if (f) {
+      let xml = await f.async("string");
+      const tl = ENC(headerRow+1, 0);
+      const pane = '<pane ySplit="'+(headerRow+1)+'" topLeftCell="'+tl+'" activePane="bottomLeft" state="frozen"/>'
+                 + '<selection pane="bottomLeft" activeCell="'+tl+'" sqref="'+tl+'"/>';
+      xml = xml.replace(/<sheetView([^>]*?)\/>/, '<sheetView$1>'+pane+'</sheetView>');
+      zip.file(path, xml);
+      return await zip.generateAsync({ type:"array" });
     }
-  }
-  const gtLabel = ws[XLSX.utils.encode_cell({ r: totalRow, c: 5 })];
-  const gtVal = ws[XLSX.utils.encode_cell({ r: totalRow, c: 6 })];
-  const gtStyle = { font: { bold: true }, fill: { fgColor: { rgb: "FEF3C7" } } };
-  if (gtLabel) gtLabel.s = gtStyle; if (gtVal) { gtVal.s = gtStyle; gtVal.z = '"$"#,##0.00'; }
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Estimate");
-  return XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  } catch (e) { /* freeze is a nicety; fall back to the unfrozen workbook */ }
+  return out;
 }
 
 function safeName(s) { return String(s).replace(/[^\w.\-]+/g, "_").slice(0, 60) || "estimate"; }
