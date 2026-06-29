@@ -1254,7 +1254,11 @@ async function buildWorkbook(p) {
   const leftIndent={horizontal:"left",vertical:"center",indent:1};
 
   // ===================== SHEET 1: DASHBOARD =====================
-  const d = mk(); const NC=24, lastCol=NC-1; d["!cols"]=Array.from({length:NC},()=>({wch:3.4}));
+  // Narrow the 24-col grid (wch 2.6) + narrow margins so all four KPI cards and
+  // the full bar chart fit one standard portrait page. xlsx-js-style can't write
+  // landscape/fit-to-page XML (only !margins), so we fit by layout instead.
+  const d = mk(); const NC=24, lastCol=NC-1; d["!cols"]=Array.from({length:NC},()=>({wch:2.6}));
+  d["!margins"]={left:0.25,right:0.25,top:0.5,bottom:0.5,header:0.3,footer:0.3};
   const rows=[]; const setH=(r,h)=>{rows[r]={hpt:h};}; let R=0;
   band(d,R,0,R,lastCol,"  SPARK HOMES",{font:font({sz:20,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.slate}},alignment:leftMid}); setH(R,30); R++;
   band(d,R,0,R,lastCol,"  REPAIR ESTIMATE · Property Cost Dashboard",{font:font({sz:11,bold:true,color:{rgb:C.white}}),fill:{fgColor:{rgb:C.orange}},alignment:leftMid}); setH(R,20); R++;
